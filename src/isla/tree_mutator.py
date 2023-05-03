@@ -25,8 +25,6 @@ from isla.type_defs import CanonicalGrammar
 from collections import deque
 
 
-DIRECT_EMBEDDING = 0
-
 def insert_tree(
         grammar: CanonicalGrammar,
         in_tree: DerivationTree,
@@ -88,7 +86,7 @@ def insert_tree_into_parent(old_tree: DerivationTree, tree_to_insert: Derivation
 
 
 def possible_parent_types(root_type: str, grammar: CanonicalGrammar) -> List[str]:
-    # TODO: reverse the grammar dict, then just return reversed_dict[root_type] (+ expansion rule(s))
+    """Reverse sorts the grammar, and return all possible parents for the in tree"""
     sorted_parents = dict()
 
     for parent in grammar:

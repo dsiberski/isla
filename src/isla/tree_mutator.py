@@ -34,32 +34,49 @@ def insert_tree(
         predicate: Optional[str] = None
 ) -> List[DerivationTree]:
     possible_parents = possible_parent_types(in_tree.value, grammar)
-    insertion_points = identify_insertion_points(tree, possible_parents)
+    parent_insertion_points, same_type_points = identify_insertion_points(tree, possible_parents, in_tree.value)
 
     # TODO: no children[0] -> consider all possible parents
     matching_rules = identify_rule_expansions(grammar, in_tree.value, possible_parents[0])
 
     result = []
 
-    simplest_matching_rule = matching_rules[0]  # TODO: takes "shortest" rule currently, decide what else to consider
+    if matching_rules:
+        simplest_matching_rule = matching_rules[
+            0]  # TODO: takes "shortest" rule currently, decide what else to consider
+    else:
+        simplest_matching_rule = []
 
-    for idx in insertion_points:
-        result.append(create_new_tree(tree, in_tree, idx, simplest_matching_rule))
+    direct_insertion = [in_tree.value] in matching_rules
+
+    for idx in parent_insertion_points:
+        result.append(create_new_tree(tree, in_tree, idx, simplest_matching_rule, direct=direct_insertion))
+
+    for idx in same_type_points:
+        result.append(create_new_tree(tree, in_tree, idx, simplest_matching_rule,
+                                      expand=True, parent=possible_parents[0]))
 
     return result
 
 
-def create_new_tree(old_tree: DerivationTree, tree_to_insert: DerivationTree, node_id: int, possible_rules) \
+def create_new_tree(old_tree: DerivationTree, tree_to_insert: DerivationTree, node_id: int, possible_rules,
+                    direct: bool = False, expand: bool = False, parent: str = None) \
         -> DerivationTree:
     """Returns tree where tree_to_insert has been inserted as position-th child at node node_id."""
     path = old_tree.find_node(node_id)
     subtree = old_tree.get_subtree(path)
-    new_subtree = insert_tree_into_parent(subtree, tree_to_insert, possible_rules)
+
+    if direct and not old_tree.children:
+        new_subtree = tree_to_insert  # TODO: probably move this down to else and do checking there for more complex insertion
+    elif expand and parent is not None:
+        new_subtree = expand_node(subtree, tree_to_insert, possible_rules, parent)
+    else:
+        new_subtree = insert_into_parent(subtree, tree_to_insert, possible_rules)
 
     return old_tree.replace_path(path, new_subtree)
 
 
-def insert_tree_into_parent(old_tree: DerivationTree, tree_to_insert: DerivationTree, rule: List[str]) \
+def insert_into_parent(old_tree: DerivationTree, tree_to_insert: DerivationTree, rule: List[str]) \
         -> DerivationTree:
     """Returns tree where tree_to_insert has been inserted as nth child into the tree."""
 
@@ -73,7 +90,7 @@ def insert_tree_into_parent(old_tree: DerivationTree, tree_to_insert: Derivation
             new_children.append(old_tree)
 
         else:
-            new_children.append(DerivationTree(item, None))  # TODO: fix id
+            new_children.append(DerivationTree(item, ()))  # TODO: fix id
 
     if tree_to_insert.is_open is True:  # TODO: does this cover all options? does not with in regard to grammar rules
         is_open = True
@@ -83,6 +100,34 @@ def insert_tree_into_parent(old_tree: DerivationTree, tree_to_insert: Derivation
         is_open = None
 
     return DerivationTree(old_tree.value, new_children, is_open=is_open)  # TODO: fix id
+
+
+def expand_node(old_node: DerivationTree, tree_to_insert: DerivationTree, rule: List[str], parent: str) \
+        -> DerivationTree:
+    """creates new parent for tree to insert and expands the old node"""  # TODO: describe better
+    new_tree_to_insert = DerivationTree(parent, [tree_to_insert])
+
+    # TODO: extra function for rule matching
+    new_children = []
+
+    for item in rule:
+        if item == parent:
+            new_children.append(new_tree_to_insert)
+
+        elif item == old_node.value:
+            new_children.append(old_node)
+
+        else:
+            new_children.append(DerivationTree(item, ()))  # TODO: fix id
+
+    if tree_to_insert.is_open is True:  # TODO: does this cover all options? does not with in regard to grammar rules
+        is_open = True
+    elif tree_to_insert.is_open is False and old_node.is_open is False:
+        is_open = False
+    else:
+        is_open = None
+
+    return DerivationTree(parent, new_children, is_open=is_open)  # TODO: fix id
 
 
 def possible_parent_types(root_type: str, grammar: CanonicalGrammar) -> List[str]:
@@ -100,22 +145,26 @@ def possible_parent_types(root_type: str, grammar: CanonicalGrammar) -> List[str
     return sorted_parents[root_type]
 
 
-def identify_insertion_points(tree: DerivationTree, parent_types: List[str]):
+def identify_insertion_points(tree: DerivationTree, parent_types: List[str], insert_type: str):
     """Checks all nodes for possible insertion points in DFS order and return the corresponding node ids as a list."""
     # TODO: might return path as well
     nodes = deque()  # use deque because of O(1) runtime for pop and append.
     nodes.append(tree)
-    interesting_nodes = []
+    parent_nodes = []
+    same_type_nodes = []
 
     while nodes:
         current_node = nodes.pop()
-        if current_node is not None:
+        if current_node.children is not None:
             new_nodes = reversed(list(current_node.children))
             nodes.extend(new_nodes)
+        if current_node is not None:  # TODO: is this necessary
             if current_node.value in parent_types:
-                interesting_nodes.append(current_node.id)
+                parent_nodes.append(current_node.id)
+            if current_node.value == insert_type:
+                same_type_nodes.append(current_node.id)
 
-    return interesting_nodes
+    return parent_nodes, same_type_nodes
 
 
 def identify_rule_expansions(grammar: CanonicalGrammar, insert_type: str, parent_type: str) -> List[List[str]]:

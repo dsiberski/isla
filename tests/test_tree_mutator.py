@@ -56,7 +56,7 @@ class TestTreeMutator(unittest.TestCase):
         self.assertTrue(all(t.find_node(into_tree.get_subtree((0, 0))) for t in result))
         self.assertTrue(all(t.find_node(into_tree.get_subtree((0, 2, 0))) for t in result))
 
-    def test_insert_lang_3(self):
+    def test_insert_into_empty(self):
         canonical_grammar = canonical(LANG_GRAMMAR)
 
         in_tree = DerivationTree(
@@ -67,23 +67,19 @@ class TestTreeMutator(unittest.TestCase):
                             '<assgn>', (
                                 DerivationTree('<var>', None, id=245),
                                 DerivationTree(' := ', (), id=244),
-                                DerivationTree('<rhs>', (
-                                    DerivationTree(
-                                        '<var>', (DerivationTree('x', (), id=12249),),
-                                        id=12250),
-                                ), id=240)
+                                DerivationTree('<rhs>', None, id=240),
+                                DerivationTree('<rhs>', None, id=241)
                             ), id=246),
                     ), id=247),
             ), id=237)
 
-        tree = DerivationTree('<rhs>', (DerivationTree('<var>', None, id=12251),), id=12252)
+        tree = DerivationTree('<rhs>', (DerivationTree('<var>', None, id=12249),), id=12250)
 
         result = insert_tree(canonical_grammar, tree, in_tree)
 
         self.assertTrue(all(t.find_node(tree) for t in result))
         self.assertTrue(all(t.find_node(12249) for t in result))
         self.assertTrue(all(t.find_node(12250) for t in result))
-        self.assertTrue(all(t.find_node(240) for t in result))
         self.assertTrue(all(t.find_node(245) for t in result))
 
     def test_insert_json_1(self):

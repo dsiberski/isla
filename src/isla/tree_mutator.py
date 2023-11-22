@@ -20,7 +20,7 @@ from typing import Optional, List, Tuple, cast, Union, Set, Dict
 from grammar_graph.gg import GrammarGraph
 
 from isla.derivation_tree import DerivationTree
-from isla.type_defs import CanonicalGrammar
+from isla.type_defs import CanonicalGrammar, Path
 
 from collections import deque
 
@@ -33,6 +33,12 @@ def insert_tree(
         methods: Optional[int] = 0,  # TODO: decide how to encode/use
         predicate: Optional[str] = None
 ) -> List[DerivationTree]:
+    # inserts only into open nodes
+    if tree.is_open():
+        open_nodes = path_empty_nodes(tree, in_tree.value, [])
+        return list(tree.replace_path(path, in_tree) for path in open_nodes)
+
+
     possible_parents = possible_parent_types(in_tree.value, grammar)
     parent_insertion_points, same_type_points = identify_insertion_points(tree, possible_parents, in_tree.value)
 
@@ -42,8 +48,7 @@ def insert_tree(
     result = []
 
     if matching_rules:
-        simplest_matching_rule = matching_rules[
-            0]  # TODO: takes "shortest" rule currently, decide what else to consider
+        simplest_matching_rule = matching_rules[0]  # TODO: takes "shortest" rule currently, decide what else to consider
     else:
         simplest_matching_rule = []
 
@@ -57,6 +62,29 @@ def insert_tree(
                                       expand=True, parent=possible_parents[0]))
 
     return result
+
+
+#def reverse_parent(grammar: CanonicalGrammar, in_tree: DerivationTree):
+
+# TODO: workaround, but not nice
+path_list = []
+def path_empty_nodes(tree: DerivationTree, value: str, path):
+    if tree.children is None and tree.value == value:
+        # this should never append an empty path, since all trees' root is <start> and value cannot be <start>
+        path_list.append(path)
+        return
+    if tree.children is None:
+        return
+
+    child_count = 0
+    for child in tree.children:
+        if child.is_open():
+            # add child to the path and call the function recursively on child
+            current_path = path.copy()
+            current_path.append(child_count)
+            path_empty_nodes(child, value, current_path)
+        child_count = child_count + 1
+    return path_list
 
 
 def create_new_tree(old_tree: DerivationTree, tree_to_insert: DerivationTree, node_id: int, possible_rules,
@@ -101,11 +129,13 @@ def insert_into_parent(old_tree: DerivationTree, tree_to_insert: DerivationTree,
 
     return DerivationTree(old_tree.value, new_children, is_open=is_open)  # TODO: fix id
 
+def insert_into_empty_node(original_tree: DerivationTree, path, inserted_tree: DerivationTree):
+    return original_tree.replace_path(path, inserted_tree)
 
 def expand_node(old_node: DerivationTree, tree_to_insert: DerivationTree, rule: List[str], parent: str) \
         -> DerivationTree:
-    """creates new parent for tree to insert and expands the old node"""  # TODO: describe better
-    new_tree_to_insert = DerivationTree(parent, [tree_to_insert])
+    """creates new parent for tree to insert and expands the old node"""  # TODO: this function does not work as intended
+    new_tree_to_insert = DerivationTree(parent, [tree_to_insert])  # TODO: this might cause the trouble
 
     # TODO: extra function for rule matching
     new_children = []

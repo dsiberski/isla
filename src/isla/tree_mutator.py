@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with ISLa.  If not, see <http://www.gnu.org/licenses/>.
-
+import queue
 from typing import Optional, List, Tuple, cast, Union, Set, Dict
 
 from grammar_graph.gg import GrammarGraph
@@ -29,39 +29,57 @@ def insert_tree(
         grammar: CanonicalGrammar,
         in_tree: DerivationTree,
         tree: DerivationTree,
-        graph: Optional[GrammarGraph] = None,
+        graph: Optional[GrammarGraph] = None, # TODO: do I need/want this?
         methods: Optional[int] = 0,  # TODO: decide how to encode/use
-        predicate: Optional[str] = None
+        predicate: Optional[str] = None # TODO: mostly call methods on subtree ?
 ) -> List[DerivationTree]:
-    # inserts only into open nodes
+    nodes_remaining = True
+    results = queue.Queue(3) # TODO: not sure about queue yet
+
+    # insert into open nodes
     if tree.is_open():
         open_nodes = path_empty_nodes(tree, in_tree.value, [])
-        return list(tree.replace_path(path, in_tree) for path in open_nodes)
+        result = [tree.replace_path(path, in_tree) for path in open_nodes]
+        results.put(result)
 
+        return results.get(timeout=60)
 
-    possible_parents = possible_parent_types(in_tree.value, grammar)
-    parent_insertion_points, same_type_points = identify_insertion_points(tree, possible_parents, in_tree.value)
+    while True:
+        if not results.empty():
+            # TODO: will currently not be reached, once all results are calculated but not retrieved!!!!
+             yield results.get(timeout=60) # ensure it will not block forever
+        elif nodes_remaining:
+            # TODO: insertion into non-empty nodes!
+            nodes_remaining = False
+        else:
+            # all possible insertion done, instead some return/Error Message?
+            break
 
-    # TODO: no children[0] -> consider all possible parents
-    matching_rules = identify_rule_expansions(grammar, in_tree.value, possible_parents[0])
+        # OLD CODE:
+        # possible_parents = possible_parent_types(in_tree.value, grammar)
+        # parent_insertion_points, same_type_points = identify_insertion_points(tree, possible_parents, in_tree.value)
+        #
+        # # TODO: no children[0] -> consider all possible parents
+        # matching_rules = identify_rule_expansions(grammar, in_tree.value, possible_parents[0])
+        #
+        # result = []
+        #
+        # if matching_rules:
+        #     simplest_matching_rule = matching_rules[0]  # TODO: takes "shortest" rule currently, decide what else to consider
+        # else:
+        #     simplest_matching_rule = []
+        #
+        # direct_insertion = [in_tree.value] in matching_rules
+        #
+        # for idx in parent_insertion_points:
+        #     result.append(create_new_tree(tree, in_tree, idx, simplest_matching_rule, direct=direct_insertion))
+        #
+        # for idx in same_type_points:
+        #     result.append(create_new_tree(tree, in_tree, idx, simplest_matching_rule,
+        #                                   expand=True, parent=possible_parents[0]))
+        #
+        # results.put(result)
 
-    result = []
-
-    if matching_rules:
-        simplest_matching_rule = matching_rules[0]  # TODO: takes "shortest" rule currently, decide what else to consider
-    else:
-        simplest_matching_rule = []
-
-    direct_insertion = [in_tree.value] in matching_rules
-
-    for idx in parent_insertion_points:
-        result.append(create_new_tree(tree, in_tree, idx, simplest_matching_rule, direct=direct_insertion))
-
-    for idx in same_type_points:
-        result.append(create_new_tree(tree, in_tree, idx, simplest_matching_rule,
-                                      expand=True, parent=possible_parents[0]))
-
-    return result
 
 
 #def reverse_parent(grammar: CanonicalGrammar, in_tree: DerivationTree):

@@ -79,13 +79,13 @@ def insert_tree(
         # results.put(result)
 
 
-def path_empty_nodes(tree, value):
+def path_empty_nodes(tree: DerivationTree, value: str) -> List[Path]:
     """
     Traverses the original tree recursively through open nodes to find empty nodes.
     Returns list of all paths leading to empty nodes of the same type as the inserted tree.
     """
     path_list = []
-    def traverse_recursively(node: DerivationTree, node_value: str, path):
+    def traverse_recursively(node: DerivationTree, node_value: str, path: List):
         if node.children is None and node.value == node_value:
             # this should never append an empty path, since all trees' root is <start> and value cannot be <start>
             path_list.append(path)

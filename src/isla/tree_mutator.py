@@ -34,15 +34,13 @@ def insert_tree(
         predicate: Optional[str] = None # TODO: mostly call methods on subtree ?
 ) -> List[DerivationTree]:
     nodes_remaining = True
-    results = queue.Queue(3) # TODO: not sure about queue yet
+    results = queue.Queue(3) # TODO: not sure about queue yet, List would probably also work
 
     # insert into open nodes
     if tree.is_open():
-        open_nodes = path_empty_nodes(tree, in_tree.value, [])
+        open_nodes = path_empty_nodes(tree, in_tree.value)
         result = [tree.replace_path(path, in_tree) for path in open_nodes]
         results.put(result)
-
-        return results.get(timeout=60)
 
     while True:
         if not results.empty():
@@ -81,27 +79,31 @@ def insert_tree(
         # results.put(result)
 
 
+def path_empty_nodes(tree, value):
+    """
+    Traverses the original tree recursively through open nodes to find empty nodes.
+    Returns list of all paths leading to empty nodes of the same type as the inserted tree.
+    """
+    path_list = []
+    def traverse_recursively(node: DerivationTree, node_value: str, path):
+        if node.children is None and node.value == node_value:
+            # this should never append an empty path, since all trees' root is <start> and value cannot be <start>
+            path_list.append(path)
+            return
+        if node.children is None:
+            return
 
-#def reverse_parent(grammar: CanonicalGrammar, in_tree: DerivationTree):
-
-# TODO: workaround, but not nice
-path_list = []
-def path_empty_nodes(tree: DerivationTree, value: str, path):
-    if tree.children is None and tree.value == value:
-        # this should never append an empty path, since all trees' root is <start> and value cannot be <start>
-        path_list.append(path)
+        child_count = 0
+        for child in node.children:
+            if child.is_open():
+                # add child to the path and call the function recursively on child
+                current_path = path.copy()
+                current_path.append(child_count)
+                traverse_recursively(child, node_value, current_path)
+            child_count = child_count + 1
         return
-    if tree.children is None:
-        return
 
-    child_count = 0
-    for child in tree.children:
-        if child.is_open():
-            # add child to the path and call the function recursively on child
-            current_path = path.copy()
-            current_path.append(child_count)
-            path_empty_nodes(child, value, current_path)
-        child_count = child_count + 1
+    traverse_recursively(tree, value, [])
     return path_list
 
 

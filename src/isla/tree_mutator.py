@@ -21,62 +21,123 @@ from grammar_graph.gg import GrammarGraph
 
 from isla.derivation_tree import DerivationTree
 from isla.type_defs import CanonicalGrammar, Path
+from test_helpers import canonical # TODO: this should not come from the helpers!!!
 
 from collections import deque
 
 
 def insert_tree(
-        grammar: CanonicalGrammar,
+        grammar, # TODO: what is its type
         in_tree: DerivationTree,
         tree: DerivationTree,
-        graph: Optional[GrammarGraph] = None, # TODO: do I need/want this?
+        graph: Optional[GrammarGraph] = None,
         methods: Optional[int] = 0,  # TODO: decide how to encode/use
         predicate: Optional[str] = None # TODO: mostly call methods on subtree ?
 ) -> List[DerivationTree]:
-    nodes_remaining = True
-    results = queue.Queue(3) # TODO: not sure about queue yet, List would probably also work
+    canonical_grammar = canonical(grammar)
+    results = queue.Queue(3) # deque has no empty attribute
+    start_nodes = deque() # enables fast FIFO
+    start_nodes.append(tree)
 
     # insert into open nodes
-    if tree.is_open():
-        open_nodes = path_empty_nodes(tree, in_tree.value)
-        result = [tree.replace_path(path, in_tree) for path in open_nodes]
-        results.put(result)
+    # TODO: this should not be needed
+    # if tree.is_open():
+    #     open_nodes = path_empty_nodes(tree, in_tree.value)
+    #     result = [tree.replace_path(path, in_tree) for path in open_nodes]
+    #     results.put(result)
+
+    if graph is None:
+        graph = GrammarGraph.from_grammar(grammar) # TODO: might need different parameter here or graph non-optional
+
+    inserted_node = graph.get_node(in_tree.value)
+
+    # start with the shortest path to a possible insertion point TODO: non-trivial path
+    path = [node.symbol for node in graph.shortest_path(graph.root, inserted_node)]
+    # remove last element from path since we want to find an insertion point
+    path.pop()
+    # remove <start> from path since we already start there
+    path.remove('<start>')
+
 
     while True:
-        if not results.empty():
-            # TODO: will currently not be reached, once all results are calculated but not retrieved!!!!
-             yield results.get(timeout=60) # ensure it will not block forever
-        elif nodes_remaining:
-            # TODO: insertion into non-empty nodes!
-            nodes_remaining = False
-        else:
-            # all possible insertion done, instead some return/Error Message?
-            break
+        if results.empty():
+            try:
+                # step 0: get (new) start_node from list and calc new path, repeat steps 1-2 while nodes in start_nodes list
+                subtree = start_nodes.popleft() # TODO: decide in which order to traverse subtrees
+            except IndexError:
+                # all possible direct insertions of the current in_tree have been done
+                # step 4: extend in_tree by adding parent, <new_parent> != <old_parent, set start_node = <start>
+                subtree = tree
+                in_tree = extend_in_tree(in_tree) # TODO: implement, lower priority, do I need to compute multiple trees?
+                # TODO: since a node mmight have different viable parents
+                # step 4.1: repeat step 1-3
+                # step 5: terminate if in_tree.type = <start> # TODO: this will change with predicates!
+                if in_tree.value == "<start>": # TODO: should I use tree.type instead of "<start>" ?q
+                    break
 
-        # OLD CODE:
-        # possible_parents = possible_parent_types(in_tree.value, grammar)
-        # parent_insertion_points, same_type_points = identify_insertion_points(tree, possible_parents, in_tree.value)
-        #
-        # # TODO: no children[0] -> consider all possible parents
-        # matching_rules = identify_rule_expansions(grammar, in_tree.value, possible_parents[0])
-        #
-        # result = []
-        #
-        # if matching_rules:
-        #     simplest_matching_rule = matching_rules[0]  # TODO: takes "shortest" rule currently, decide what else to consider
-        # else:
-        #     simplest_matching_rule = []
-        #
-        # direct_insertion = [in_tree.value] in matching_rules
-        #
-        # for idx in parent_insertion_points:
-        #     result.append(create_new_tree(tree, in_tree, idx, simplest_matching_rule, direct=direct_insertion))
-        #
-        # for idx in same_type_points:
-        #     result.append(create_new_tree(tree, in_tree, idx, simplest_matching_rule,
-        #                                   expand=True, parent=possible_parents[0]))
-        #
-        # results.put(result)
+            # step 1: follow path, add siblings to start-nodes list
+            # TODO: save derivation_tree path for insertion using "replace path" function
+            new_start_nodes = []
+            for node in path:
+                new_start_nodes.extend(subtree.children)
+                subtree = traverse_shortest_path(subtree, node)
+                # TODO: step 1.1: if stuck, check if children in path or empty children, middle priority
+                try:
+                    new_start_nodes.remove(subtree)
+                except ValueError:
+                    pass
+                # step 1.2: add children to start_nodes list
+                start_nodes.extend([new_start_nodes]) # TODO: filter this for predicates, lower priority
+
+
+            # step 2: found end of path -> check for possible expansions
+            parent_type = path[len(path) - 1]
+            # step 2.1: check if expansion fits in_tree + old children # TODO: matching algorithm, high priority
+            possible_rules = canonical_grammar.get(parent_type)
+            new_children = list()
+            for rule in possible_rules:
+                if parent_type in rule and in_tree.value in rule:
+                    # step 2.1.1: collect children's and insert's type and match with rules for parent type
+                    new_children = match_rule(rule, in_tree, subtree)
+
+            # step 2.2: insert if True for each expansion that fits
+            new_subtree = DerivationTree(parent_type, new_children) # TODO: id, low priority
+
+            new_tree = tree.replace_path(tree.find_node(subtree), new_subtree) # TODO: identify path more efficiently?
+            results.put(new_tree)
+
+        else:
+            # return calculated results
+            yield results.get(timeout=60)  # ensure it will not block forever, deque also has no empty attribute
+
+
+def match_rule(rule, in_tree, parent):
+    # TODO: cannot add multiple children of same type
+    new_children = []
+
+    for item in rule:
+        if item == parent.value:
+            new_children.append(parent)
+
+        elif item == in_tree.value:
+            new_children.append(in_tree)
+
+        else:
+            new_children.append(DerivationTree(item, ()))  # TODO: fix id
+
+    return new_children
+
+
+
+def traverse_shortest_path(tree, node):
+    for child in tree.children:
+        if child.value == node:
+            return child
+    return # TODO: stuck error?
+
+
+def extend_in_tree(tree):
+    raise NotImplementedError
 
 
 def path_empty_nodes(tree: DerivationTree, value: str) -> List[Path]:

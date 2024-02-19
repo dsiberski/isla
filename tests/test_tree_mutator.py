@@ -10,23 +10,44 @@ from test_helpers import parse, canonical
 class TestTreeMutator(unittest.TestCase):
     def test_insert_lang(self):
         #canonical_grammar = canonical(LANG_GRAMMAR)
-
+        result = list()
         inp = "x := 1 ; y := z"
         tree = DerivationTree.from_parse_tree(parse(inp, LANG_GRAMMAR))
 
         to_insert = DerivationTree.from_parse_tree(parse("y := 0", LANG_GRAMMAR, "<assgn>"))
         results = insert_tree(LANG_GRAMMAR, to_insert, tree)
-        #result = next(results)
-        #self.assertIn("x := 1 ; y := 0 ; y := z", map(str, results))
+        while True:
+            try:
+                result.append(next(results))
+            except StopIteration:
+                break
+
+        str_results = [str(t) for t in result]
+        print("\n\n")
+        print("\n\n".join(str_results))
+
+        self.assertIn("x := 1 ; y := 0 ; y := z", map(str, result))
+        self.assertIn("y := 0 ; x := 1 ; y := z", map(str, result))
+        self.assertIn("x := 1 ; y := z ; y := 0", map(str, result))
+
+        results = insert_tree(LANG_GRAMMAR, to_insert, tree)
         self.assertIn("y := 0 ; x := 1 ; y := z", map(str, results))
 
-        # results = insert_tree(LANG_GRAMMAR, to_insert, tree)
-        # self.assertIn("y := 0 ; x := 1 ; y := z", map(str, results))
-        #
-        # inp = "x := 1 ; y := 2 ; y := z"
-        # tree = DerivationTree.from_parse_tree(parse(inp, LANG_GRAMMAR))
-        # results = insert_tree(LANG_GRAMMAR, to_insert, tree)
-        # self.assertIn("x := 1 ; y := 2 ; y := 0 ; y := z", map(str, results))
+        inp = "x := 1 ; y := 2 ; y := z"
+        tree = DerivationTree.from_parse_tree(parse(inp, LANG_GRAMMAR))
+        results = insert_tree(LANG_GRAMMAR, to_insert, tree)
+
+        while True:
+            try:
+                result.append(next(results))
+            except StopIteration:
+                break
+
+        str_results = [str(t) for t in result]
+        print("\n\n")
+        print("\n\n".join(str_results))
+
+        self.assertIn("x := 1 ; y := 2 ; y := 0 ; y := z", map(str, result))
 
     def test_insert_lang_2(self):
         inserted_tree = DerivationTree('<assgn>', (
@@ -49,8 +70,13 @@ class TestTreeMutator(unittest.TestCase):
                         DerivationTree('<rhs>', (
                             DerivationTree('<var>', None),)))),)))),))
 
-        result = insert_tree(canonical(LANG_GRAMMAR), inserted_tree, into_tree)
-
+        results = insert_tree(canonical(LANG_GRAMMAR), inserted_tree, into_tree)
+        result = list()
+        while True:
+            try:
+                result.append(next(results))
+            except StopIteration:
+                break
         # str_results = [str(t) for t in result]
         # print("\n\n".join(str_results))
 

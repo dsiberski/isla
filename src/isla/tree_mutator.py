@@ -21,6 +21,7 @@ from grammar_graph.gg import GrammarGraph
 
 from isla.derivation_tree import DerivationTree
 from isla.type_defs import CanonicalGrammar, Path
+from isla.helpers import is_nonterminal
 from test_helpers import canonical # TODO: this should not come from the helpers!!!
 
 from collections import deque
@@ -29,7 +30,7 @@ from collections import deque
 def insert_tree(
         grammar, # TODO: what is its type
         in_tree: DerivationTree,
-        tree: DerivationTree,
+        old_tree: DerivationTree,
         graph: Optional[GrammarGraph] = None,
         methods: Optional[int] = 0,  # TODO: decide how to encode/use
         predicate: Optional[str] = None # TODO: mostly call methods on subtree ?
@@ -37,7 +38,7 @@ def insert_tree(
     canonical_grammar = canonical(grammar)
     results = queue.Queue(3) # deque has no empty attribute
     start_nodes = deque() # enables fast FIFO
-    start_nodes.append(tree)
+    start_nodes.append(old_tree)
 
     # insert into open nodes
     # TODO: this should not be needed
@@ -66,62 +67,75 @@ def insert_tree(
             try:
                 # step 0: get (new) start_node from list and calc new path, repeat steps 1-2 while nodes in start_nodes list
                 subtree = start_nodes.popleft() # TODO: decide in which order to traverse subtrees
-                # TODO: find out how to differentiate syntax nodes from semantic nodes and skip them!!!! since they
-                # TODO: break the following function; high priority!!!!
-                path = [node.symbol for node in graph.shortest_non_trivial_path(graph.get_node(subtree.value),
-                                                                                graph.get_node(in_tree.value))]
-                print(path)
-                path.remove('<start>') # TODO: properly prune path; medium priority
+
             except IndexError:
                 # all possible direct insertions of the current in_tree have been done
                 # step 4: extend in_tree by adding parent, <new_parent> != <old_parent, set start_node = <start>
                 # TODO: only initialize sorted_parents once here, figure out syntax (try...except...)
+                subtree = old_tree
                 sorted_parents = possible_parent_types(canonical_grammar)
                 in_parents = sorted_parents.get(in_tree.value)
                 in_tree = extend_tree(canonical_grammar, in_tree, in_parents) # TODO: do I need to compute multiple trees?
                 # TODO: calculate new path!!!
                 # step 4.1: repeat step 1-3
-                # step 5: terminate if in_tree.type = <start> # TODO: this will change with predicates!
-                if in_tree.value == "<start>": # TODO: should I use tree.type instead of "<start>" ?q
+
+                if in_tree.value == old_tree.value:
+                    # step 5: terminate if in_tree.value = <start> / old_tree.value # TODO: this will change with predicates!
                     break
                 pass
 
             # step 1: follow path, add siblings to start-nodes list
             # TODO: save derivation_tree path for insertion using "replace path" function
             new_start_nodes = []
-            for node in path:
-                try:
-                    new_start_nodes.extend(subtree.children)
-                except AttributeError:
-                    print("Attribute error when extending new_start_nodes") # TODO: current workaround?
-                    pass
-                subtree = traverse_shortest_path(subtree, node)
-                # TODO: step 1.1: if stuck, check if children in path or empty children, middle priority
-                try:
-                    new_start_nodes.remove(subtree)
-                except ValueError:
-                    pass
-                # step 1.2: add children to start_nodes list
-                start_nodes.extend([new_start_nodes]) # TODO: filter this for predicates, lower priority
 
+            original_node = graph.get_node(subtree.value)
+            inserted_node = graph.get_node(in_tree.value)
+            try:
+                path = [node.symbol for node in graph.shortest_non_trivial_path(original_node, inserted_node)]
+                if '<start>' in path:
+                    path.remove('<start>')  # TODO: properly prune path; high priority
+                # path.pop(0)
+                if len(path) > 1: # TODO: does this make sense?
+                    path.pop()
+            except IndexError:
+                path = []
+                pass
 
-            # step 2: found end of path -> check for possible expansions
-            parent_type = path[len(path) - 1]
-            # step 2.1: check if expansion fits in_tree + old children # TODO: matching algorithm, high priority
-            possible_rules = canonical_grammar.get(parent_type)
-            new_children = list()
-            # TODO: this is recursive insertion currently, do I have to consider parallel insertion?
-            for rule in possible_rules:
-                if parent_type in rule and in_tree.value in rule:
-                    # TODO: should be fine because recursion, parent_type both on the left and right side of rule
-                    # TODO: decide how to handle recursion cases where parent_type = in_tree.value -> reduce old node?
-                    # step 2.1.1: collect children's and insert's type and match with rules for parent type
-                    new_children = match_rule(rule, in_tree, subtree)
+            if path:
+                for node in path:
+                    for child in subtree.children:
+                        if is_nonterminal(child.value):
+                            # step 1.2: add children to start_nodes list
+                            start_nodes.append(child)
 
-            # step 2.2: insert if True for each expansion that fits
-            new_subtree = DerivationTree(parent_type, new_children) # TODO: id, low priority
-            new_tree = tree.replace_path(tree.find_node(subtree), new_subtree) # TODO: identify path more efficiently?
-            results.put(new_tree)
+                    substituted_tree = traverse_shortest_path(subtree, node) # TODO: rename one of these subtrees!
+                    # TODO: step 1.1: if stuck, check if children in path or empty children, middle priority
+                    # try:
+                    #     new_start_nodes.remove(subtree)
+                    # except ValueError:
+                    #     pass
+
+                    # if new_start_nodes:
+                    #     start_nodes.extend([new_start_nodes]) # TODO: filter this for predicates, lower priority
+
+                if substituted_tree:
+                    # step 2: found end of path -> check for possible expansions
+                    parent_type = path[len(path) - 1]
+                    # step 2.1: check if expansion fits in_tree + old children # TODO: matching algorithm, medium priority
+                    possible_rules = canonical_grammar.get(parent_type)
+                    new_children = list()
+                    # TODO: this is recursive insertion currently, do I have to consider parallel insertion?
+                    for rule in possible_rules:
+                        if parent_type in rule and in_tree.value in rule:
+                            # TODO: should be fine because recursion, parent_type both on the left and right side of rule
+                            # TODO: decide how to handle recursion cases where parent_type = in_tree.value -> reduce old node?
+                            # step 2.1.1: collect children's and insert's type and match with rules for parent type
+                            new_children = match_rule(rule, in_tree, substituted_tree)
+
+                    # step 2.2: insert if True for each expansion that fits
+                    new_subtree = DerivationTree(parent_type, new_children) # TODO: id, low priority
+                    new_tree = old_tree.replace_path(old_tree.find_node(substituted_tree), new_subtree) # TODO: identify path more efficiently?
+                    results.put(new_tree)
 
         else:
             # return calculated results
@@ -133,17 +147,18 @@ def match_rule(rule, in_tree, sibling=DerivationTree("", ())):
     new_children = []
     new_sibling = None
 
-    if in_tree.value == sibling.value:
-        siblings = list(sibling.children)
-        new_sibling = siblings[0] # TODO: find out why pop() does not work
-        sibling = None
+    if sibling:
+        if in_tree.value == sibling.value:
+            siblings = list(sibling.children)
+            new_sibling = siblings[0] # TODO: find out why pop() does not work
+            sibling = None
 
     for item in rule:
         # TODO: fix that a sibling is only inserted once, try to fix syntax stuff?
         if new_sibling is not None and item == new_sibling.value:
             new_children.append(new_sibling)
             new_sibling = None # TODO: workaround, fix that it works with multiple children instead
-            # TODO: if it does not accommodate all siblings, do not return anything -> no valid result; high priority
+            # TODO: if it does not accommodate all siblings, do not return anything -> no valid result; medium priority
 
         elif sibling is not None and item == sibling.value:
             new_children.append(sibling)

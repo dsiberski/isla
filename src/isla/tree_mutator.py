@@ -40,6 +40,8 @@ def insert_tree(
     start_nodes = deque() # enables fast FIFO
     start_nodes.append(old_tree)
 
+    original_in_tree = in_tree # TODO: safekeeping for original inserted tree, fix later
+
     # insert into open nodes
     # TODO: this should not be needed
     # if tree.is_open():
@@ -135,7 +137,16 @@ def insert_tree(
                     # step 2.2: insert if True for each expansion that fits
                     new_subtree = DerivationTree(parent_type, new_children) # TODO: id, low priority
                     new_tree = old_tree.replace_path(old_tree.find_node(substituted_tree), new_subtree) # TODO: identify path more efficiently?
-                    results.put(new_tree)
+
+                    # TODO: fix algorithm later on instead of this workaround,
+                    #  since it only tests for individual characters/words, not structures
+                    is_in_tree = True
+                    for word in str(old_tree).split():
+                        if word not in str(new_tree):
+                            is_in_tree = False
+
+                    if is_in_tree and str(original_in_tree) in str(new_tree):
+                        results.put(new_tree)
 
         else:
             # return calculated results

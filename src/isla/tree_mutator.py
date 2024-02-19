@@ -32,8 +32,8 @@ def insert_tree(
         in_tree: DerivationTree,
         old_tree: DerivationTree,
         graph: Optional[GrammarGraph] = None,
-        methods: Optional[int] = 0,  # TODO: decide how to encode/use
-        predicate: Optional[str] = None # TODO: mostly call methods on subtree ?
+        predicate: Optional[str] = None, # TODO: mostly call methods on subtree ?
+        max_num_solutions: Optional[int] = None
 ) -> List[DerivationTree]:
     canonical_grammar = canonical(grammar)
     results = queue.Queue(3) # deque has no empty attribute
@@ -41,12 +41,13 @@ def insert_tree(
     start_nodes.append(old_tree)
 
     original_in_tree = in_tree # TODO: safekeeping for original inserted tree, fix later
+    solution_count = 0
 
     # insert into open nodes
     # TODO: this should not be needed
-    # if tree.is_open():
-    #     open_nodes = path_empty_nodes(tree, in_tree.value)
-    #     result = [tree.replace_path(path, in_tree) for path in open_nodes]
+    # if old_tree.is_open():
+    #     open_nodes = path_empty_nodes(old_tree, in_tree.value)
+    #     result = [old_tree.replace_path(path, in_tree) for path in open_nodes]
     #     results.put(result)
 
     if graph is None:
@@ -64,6 +65,8 @@ def insert_tree(
     sorted_parents = dict()
 
     while True:
+        if max_num_solutions and solution_count > max_num_solutions:
+            break
         if results.empty():
             #start_nodes.clear() # TODO: delete
             try:
@@ -147,6 +150,7 @@ def insert_tree(
 
                     if is_in_tree and str(original_in_tree) in str(new_tree):
                         results.put(new_tree)
+                        solution_count = solution_count + 1
 
         else:
             # return calculated results

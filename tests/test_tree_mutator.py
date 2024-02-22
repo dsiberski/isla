@@ -196,8 +196,8 @@ class TestTreeMutator(unittest.TestCase):
         # TODO: this test is sensitive to the order of results, fix this!
         self.assertEqual(
             [  # '<var> := <var> ; <assgn> ; <stmt>',
-                '<var> := <var> ; <assgn>',
-                '<assgn> ; <var> := <var>'],
+                '<assgn> ; <var> := <var>',
+                '<var> := <var> ; <assgn>'],
             list(map(str, results))
         )
 

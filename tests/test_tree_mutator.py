@@ -161,8 +161,6 @@ class TestTreeMutator(unittest.TestCase):
         results = insert_tree(JSON_GRAMMAR, to_insert, tree, max_num_solutions=20)
         str_results = [result.to_string().strip() for result in results]
 
-        # TODO: endlosschleife
-
         self.assertIn(
             '{ "key" : { "key" : null } , '
             '"T" : { "I" : true , "" : [ false , "salami" ] , "" : true , "" : null , "" : false } }',

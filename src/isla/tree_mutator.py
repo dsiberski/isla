@@ -111,12 +111,15 @@ def insert_tree(
                     path = []
                     pass
 
-                if path and subtree.children: # TODO: do I want to test this here like this?
+
+                substituted_tree = subtree
+                if path: # TODO: do I want to test this here like this?
                     for node in path:
-                        for child in subtree.children:
-                            if is_nonterminal(child.value):
-                                # step 1.2: add children to start_nodes list
-                                start_nodes.append(child)
+                        if substituted_tree and substituted_tree.children:
+                            for child in substituted_tree.children:
+                                if is_nonterminal(child.value):
+                                    # step 1.2: add children to start_nodes list
+                                    start_nodes.append(child)
 
                         substituted_tree = traverse_shortest_path(subtree, node)
                         # TODO: step 1.1: if stuck, check if children in path or empty children, middle priority

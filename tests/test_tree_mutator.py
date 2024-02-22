@@ -161,6 +161,9 @@ class TestTreeMutator(unittest.TestCase):
         results = insert_tree(JSON_GRAMMAR, to_insert, tree, max_num_solutions=20)
         str_results = [result.to_string().strip() for result in results]
 
+        print("\n\n")
+        print("\n\n".join(str_results))
+
         self.assertIn(
             '{ "key" : { "key" : null } , '
             '"T" : { "I" : true , "" : [ false , "salami" ] , "" : true , "" : null , "" : false } }',
@@ -172,12 +175,16 @@ class TestTreeMutator(unittest.TestCase):
         to_insert = DerivationTree.from_parse_tree(parse(' "cheese" ', JSON_GRAMMAR, "<element>"))
 
         results = insert_tree(JSON_GRAMMAR, to_insert, tree, max_num_solutions=10)
+        str_results = [result.to_string().strip() for result in results]
+
+        print("\n\n")
+        print("\n\n".join(str_results))
 
         self.assertIn(
             '['
             ' { "T" : { "I" : true , "" : [ false , "salami" ] , "" : true , "" : null , "" : false } } , '
             '"cheese" ]',
-            [result.to_string() for result in results])
+            str_results)
 
     def test_insert_assignment(self):
         assgn = DerivationTree.from_parse_tree(("<assgn>", None))
@@ -212,6 +219,8 @@ class TestTreeMutator(unittest.TestCase):
             id=2)
         DerivationTree.next_id = 8
 
+        # TODO: tests for IDs!
+
 
         results = insert_tree(
             LANG_GRAMMAR,
@@ -237,6 +246,8 @@ class TestTreeMutator(unittest.TestCase):
 
 
     def test_insert_xml_1(self):
+        # TODO: fix infinite loop
+
         tree = DerivationTree.from_parse_tree(next(EarleyParser(XML_GRAMMAR).parse("<b>asdf</b>")))
         to_insert = DerivationTree("<xml-open-tag>", [
             DerivationTree("<", []),
@@ -367,23 +378,29 @@ class TestTreeMutator(unittest.TestCase):
 
     # Test deactivated: Should assert that no prefix trees are generated. The implemented
     # check in insert_tree, however, was too expensive for the JSON examples. Stalling for now.
-    # def test_insert_var(self):
-    #    tree = ('<start>', [('<stmt>', [('<assgn>', None), ('<stmt>', None)])])
-    #
-    #    results = insert_tree(canonical(LANG_GRAMMAR),
-    #                          DerivationTree("<var>", None),
-    #                          DerivationTree.from_parse_tree(tree))
-    #
-    #    print(list(map(str, results)))
-    #    self.assertEqual(
-    #        ['<var> := <rhs><stmt>',
-    #         '<assgn><var> := <rhs>',
-    #         '<var> := <rhs> ; <assgn><stmt>',
-    #         '<assgn> ; <var> := <rhs> ; <assgn><stmt>',
-    #         '<assgn><var> := <rhs> ; <stmt>',
-    #         '<assgn><assgn> ; <var> := <rhs> ; <stmt>'],
-    #        list(map(str, results))
-    #    )
+    def test_insert_var(self):
+        # TODO: this does not return anything currently
+        tree = ('<start>', [('<stmt>', [('<assgn>', None), ('<stmt>', None)])])
+
+        results = insert_tree(LANG_GRAMMAR,
+                             DerivationTree("<var>", None),
+                             DerivationTree.from_parse_tree(tree))
+        str_results = [result.to_string().strip() for result in results]
+
+        print("\n\n")
+        print("\n\n".join(str_results))
+
+        #print(list(map(str, results)))
+        self.assertEqual(
+           ['<var> := <rhs><stmt>',
+            '<assgn><var> := <rhs>',
+            '<var> := <rhs> ; <assgn><stmt>',
+            '<assgn> ; <var> := <rhs> ; <assgn><stmt>',
+            '<assgn><var> := <rhs> ; <stmt>',
+            '<assgn><assgn> ; <var> := <rhs> ; <stmt>'],
+           str_results)
+        #     list(map(str, results))
+        # )
 
 if __name__ == '__main__':
     unittest.main()

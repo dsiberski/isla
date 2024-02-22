@@ -201,10 +201,11 @@ def match_rule(rule, in_tree, sibling=DerivationTree("", ())):
 
 
 def traverse_shortest_path(tree, node):
-    for child in tree.children:
-        if child.value == node:
-            return child
-    return # TODO: stuck error? low priority
+    if tree.children: # TODO: should I test this here?
+        for child in tree.children:
+            if child.value == node:
+                return child
+    return None # TODO: stuck error? low priority, None is fine for now this result is later checked against None
 
 
 def extend_tree(grammar, tree: DerivationTree, parents: List[str]) -> List[DerivationTree]:

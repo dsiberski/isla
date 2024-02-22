@@ -111,7 +111,7 @@ def insert_tree(
                     path = []
                     pass
 
-                if path:
+                if path and subtree.children: # TODO: do I want to test this here like this?
                     for node in path:
                         for child in subtree.children:
                             if is_nonterminal(child.value):
@@ -170,7 +170,7 @@ def match_rule(rule, in_tree, sibling=DerivationTree("", ())):
     new_children = []
     new_sibling = None
 
-    if sibling:
+    if sibling and sibling.children: # TODO: do I want to check this here like this?
         if in_tree.value == sibling.value:
             siblings = list(sibling.children)
             new_sibling = siblings[0] # TODO: find out why pop() does not work

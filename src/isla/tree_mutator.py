@@ -70,7 +70,6 @@ def insert_tree(
         if max_num_solutions and solution_count > max_num_solutions:
             break
         if results.empty():
-            #start_nodes.clear() # TODO: delete
             try:
                 # step 0: get (new) start_node from list and calc new path, repeat steps 1-2 while nodes in start_nodes list
                 subtree = start_nodes.popleft() # TODO: decide in which order to traverse subtrees
@@ -94,7 +93,6 @@ def insert_tree(
 
             # step 1: follow path, add siblings to start-nodes list
             # TODO: save derivation_tree path for insertion using "replace path" function
-            new_start_nodes = []
 
             for in_tree in in_trees:
 
@@ -123,8 +121,10 @@ def insert_tree(
 
                         substituted_tree = traverse_shortest_path(subtree, node)
                         # TODO: step 1.1: if stuck, check if children in path or empty children, middle priority
+                        # TODO: the following codes breaks JSON completely -> check why; high priority
+                        #  this does not seem to remove any node currently
                         # try:
-                        #     new_start_nodes.remove(subtree)
+                        #     start_nodes.remove(subtree)
                         # except ValueError:
                         #     pass
 

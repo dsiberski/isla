@@ -123,10 +123,11 @@ def insert_tree(
                         # TODO: step 1.1: if stuck, check if children in path or empty children, middle priority
                         # TODO: the following codes breaks JSON completely -> check why; high priority
                         #  this does not seem to remove any node currently
-                        # try:
-                        #     start_nodes.remove(subtree)
-                        # except ValueError:
-                        #     pass
+                        if substituted_tree and len(substituted_tree.children) == 1: # TODO: ensure that substituted_tree is never None here
+                            try:
+                                start_nodes.remove(substituted_tree)
+                            except ValueError:
+                                pass
 
                         # if new_start_nodes:
                         #     start_nodes.extend([new_start_nodes]) # TODO: filter this for predicates, lower priority

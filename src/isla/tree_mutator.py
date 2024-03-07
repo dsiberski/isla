@@ -101,7 +101,7 @@ def insert_tree(
                 try:
                     path = [node.symbol for node in graph.shortest_non_trivial_path(original_node, inserted_node)]
                     if '<start>' in path:
-                        path.remove('<start>')  # TODO: properly prune path; high priority
+                        path.remove('<start>')  # TODO: properly prune path; low priority
                     # path.pop(0)
                     if len(path) > 1: # TODO: does this make sense?
                         path.pop()
@@ -111,6 +111,7 @@ def insert_tree(
 
 
                 substituted_tree = subtree
+                parent = substituted_tree
                 if path: # TODO: do I want to test this here like this?
                     for node in path:
                         if substituted_tree and substituted_tree.children:
@@ -118,10 +119,10 @@ def insert_tree(
                                 if is_nonterminal(child.value):
                                     # step 1.2: add children to start_nodes list
                                     start_nodes.append(child)
-
-                        substituted_tree = traverse_shortest_path(subtree, node)
+                        parent = substituted_tree # TODO: this does not end in the parent, but the substituted_tree; high priority
+                        if substituted_tree:
+                            substituted_tree = traverse_shortest_path(substituted_tree, node)
                         # TODO: step 1.1: if stuck, check if children in path or empty children, middle priority
-                        # TODO: the following codes breaks JSON completely -> check why; high priority
                         #  this does not seem to remove any node currently
                         if substituted_tree and len(substituted_tree.children) == 1: # TODO: ensure that substituted_tree is never None here
                             try:
@@ -139,30 +140,31 @@ def insert_tree(
                         possible_rules = canonical_grammar.get(parent_type)
                         new_children = list()
                         # TODO: this is recursive insertion currently, do I have to consider parallel insertion?
+
+                        new_tree = None
                         for rule in possible_rules:
                             if parent_type in rule and in_tree.value in rule:
                                 # TODO: should be fine because recursion, parent_type both on the left and right side of rule
-                                # TODO: decide how to handle recursion cases where parent_type = in_tree.value -> reduce old node?
                                 # step 2.1.1: collect children's and insert's type and match with rules for parent type
                                 new_children = match_rule(rule, in_tree, substituted_tree)
-
-                        # step 2.2: insert if True for each expansion that fits
-                        new_subtree = DerivationTree(parent_type, new_children) # TODO: id, low priority
-                        new_tree = old_tree.replace_path(old_tree.find_node(substituted_tree), new_subtree) # TODO: identify path more efficiently?
+                                # step 2.2: insert if True for each expansion that fits
+                                new_subtree = DerivationTree(parent_type, new_children)  # TODO: id, low priority
+                                new_tree = old_tree.replace_path(old_tree.find_node(substituted_tree), new_subtree) # TODO: identify path more efficiently?
 
                         # TODO: fix algorithm later on instead of this workaround,
                         #  since it only tests for individual characters/words, not structures
-                        is_in_tree = True
-                        for word in str(old_tree).split():
-                            if word not in str(new_tree):
+                        if new_tree:
+                            is_in_tree = True
+                            for word in str(old_tree).split():
+                                if word not in str(new_tree):
+                                    is_in_tree = False
+
+                            if len(str(new_tree)) < len(str(old_tree)) + len(str(original_in_tree)):
                                 is_in_tree = False
 
-                        if len(str(new_tree)) < len(str(old_tree)) + len(str(original_in_tree)):
-                            is_in_tree = False
-
-                        if is_in_tree and str(original_in_tree) in str(new_tree):
-                            results.put(new_tree)
-                            solution_count = solution_count + 1
+                            if is_in_tree and str(original_in_tree) in str(new_tree):
+                                results.put(new_tree)
+                                solution_count = solution_count + 1
 
         else:
             # return calculated results
@@ -193,9 +195,11 @@ def match_rule(rule, in_tree, sibling=DerivationTree("", ())):
         elif item == in_tree.value:
             new_children.append(in_tree)
 
+        elif not is_nonterminal(item):
+            new_children.append(DerivationTree(item, ()))  # TODO: fix id? low priority
+            # TODO: should this be None or () ? None might indicate open node, while () indicates closed node?
         else:
-            new_children.append(DerivationTree(item, None))  # TODO: fix id? low priority
-            # TODO: should this be None or () ?
+            new_children.append(DerivationTree(item, None))
 
     return new_children
 

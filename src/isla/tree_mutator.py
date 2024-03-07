@@ -129,11 +129,24 @@ def insert_tree(
                                 start_nodes.remove(substituted_tree)
                             except ValueError:
                                 pass
+                        if parent:
+                            try:
+                                start_nodes.remove(parent)
+                            except ValueError:
+                                pass
 
                         # if new_start_nodes:
                         #     start_nodes.extend([new_start_nodes]) # TODO: filter this for predicates, lower priority
 
                     if substituted_tree:
+
+                        # TODO: find out, why some nodes are not added with JSON, this is a workaround
+                        if substituted_tree.children:
+                            for child in substituted_tree.children:
+                                if is_nonterminal(child.value):
+                                    start_nodes.append(child)
+
+                        print(substituted_tree.value)
                         # step 2: found end of path -> check for possible expansions
                         parent_type = path[len(path) - 1]
                         # step 2.1: check if expansion fits in_tree + old children # TODO: matching algorithm, medium priority
@@ -225,9 +238,9 @@ def extend_tree(grammar, tree: DerivationTree, parents: List[str]) -> List[Deriv
         rule = possible_rules[0]
         ext_trees = []
 
-        # TODO: only extends for shortest rule currently, might also add different rules? low priority
+        # TODO: only uses last rule containing in_tree currently, do I want more analysis (shortest rule?), low priority
         for item in possible_rules:
-            if len(item) < len(rule):
+            if tree.value in item:
                 rule = item
         children = match_rule(rule, tree)
         ext_trees.append(DerivationTree(parent, children))

@@ -186,6 +186,39 @@ class TestTreeMutator(unittest.TestCase):
             '"cheese" ]',
             str_results)
 
+    def test_insert_json_1_subset_1(self):
+        inp = ' { "T" : false } '
+        tree = DerivationTree.from_parse_tree(parse(inp, JSON_GRAMMAR))
+        to_insert = DerivationTree.from_parse_tree(parse(' "key" : { "key" : null } ', JSON_GRAMMAR, "<member>"))
+
+        results = insert_tree(JSON_GRAMMAR, to_insert, tree, max_num_solutions=10)
+        str_results = [result.to_string().strip() for result in results]
+
+        print("\n\n")
+        print("\n\n".join(str_results))
+
+        self.assertIn(
+            '{ "key" : { "key" : null } , '
+            '"T" : false } }',
+            str_results)
+
+    def test_insert_json_1_subset_2(self):
+        inp = ' { "T" : { "" : [ false , "salami" ] } } '
+        tree = DerivationTree.from_parse_tree(parse(inp, JSON_GRAMMAR))
+        to_insert = DerivationTree.from_parse_tree(parse(' "key" : { "key" : null } ', JSON_GRAMMAR, "<member>"))
+
+        results = insert_tree(JSON_GRAMMAR, to_insert, tree, max_num_solutions=10)
+        str_results = [result.to_string().strip() for result in results]
+
+        print("\n\n")
+        print("\n\n".join(str_results))
+
+        self.assertIn(
+            '{ "key" : { "key" : null } , '
+            '"T" : { "" : [ false , "salami" ]  } }',
+            str_results)
+
+
     def test_insert_assignment(self):
         assgn = DerivationTree.from_parse_tree(("<assgn>", None))
         tree = (

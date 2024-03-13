@@ -46,12 +46,6 @@ def insert_tree(
     # substituted_tree = None # TODO: do I want/need this here?
     in_trees = [in_tree]
 
-    # insert into open nodes
-    # TODO: this should not be needed
-    # if old_tree.is_open():
-    #     open_nodes = path_empty_nodes(old_tree, in_tree.value)
-    #     result = [old_tree.replace_path(path, in_tree) for path in open_nodes]
-    #     results.put(result)
 
     if graph is None:
         graph = GrammarGraph.from_grammar(grammar) # TODO: might need different parameter here or graph non-optional
@@ -257,37 +251,6 @@ def extend_tree(grammar, tree: DerivationTree, parents: List[str]) -> List[Deriv
         ext_trees.append(DerivationTree(parent, children))
 
     return ext_trees
-
-
-
-
-# def path_empty_nodes(tree: DerivationTree, value: str) -> List[Path]:
-#     """
-#     Traverses the original tree recursively through open nodes to find empty nodes.
-#     Returns list of all paths leading to empty nodes of the same type as the inserted tree.
-#     """
-#     path_list = []
-#     def traverse_recursively(node: DerivationTree, node_value: str, path: List):
-#         if node.children is None and node.value == node_value:
-#             # this should never append an empty path, since all trees' root is <start> and value cannot be <start>
-#             path_list.append(path)
-#             return
-#         if node.children is None:
-#             return
-#
-#         child_count = 0
-#         for child in node.children:
-#             if child.is_open():
-#                 # add child to the path and call the function recursively on child
-#                 current_path = path.copy()
-#                 current_path.append(child_count)
-#                 traverse_recursively(child, node_value, current_path)
-#             child_count = child_count + 1
-#         return
-#
-#     traverse_recursively(tree, value, [])
-#     return path_list
-
 
 
 def possible_parent_types(grammar: CanonicalGrammar) -> Dict:

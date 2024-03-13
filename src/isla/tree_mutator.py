@@ -47,7 +47,7 @@ def insert_tree(
 
     # create a grammar graph if only grammar is available
     if graph is None:
-        graph = GrammarGraph.from_grammar(grammar) # TODO: might need different parameter here or graph non-optional
+        graph = GrammarGraph.from_grammar(grammar)
 
 
     while True:
@@ -56,7 +56,7 @@ def insert_tree(
         if results.empty():
             try:
                 # step 0: get (new) start_node from list and calc new path, repeat steps 1-2 while nodes in start_nodes list
-                subtree = start_nodes.popleft() # TODO: decide in which order to traverse subtrees
+                subtree = start_nodes.popleft() # traverse breadth first for new starting points
 
             except IndexError:
                 # all possible direct insertions of the current in_tree have been done
@@ -107,10 +107,10 @@ def match_rule(rule, in_tree, sibling=DerivationTree("", ())):
     new_children = []
     new_sibling = None
 
-    if sibling and sibling.children: # TODO: do I want to check this here like this?
+    if sibling and sibling.children:
         if in_tree.value == sibling.value:
             siblings = list(sibling.children)
-            new_sibling = siblings[0] # TODO: find out why pop() does not work
+            new_sibling = siblings[0] # TODO: I do not remember why I implemented this, add comment for explanation!
             sibling = None
 
     for item in rule:
@@ -120,7 +120,7 @@ def match_rule(rule, in_tree, sibling=DerivationTree("", ())):
             new_sibling = None # TODO: workaround, fix that it works with multiple children instead
             # TODO: if it does not accommodate all siblings, do not return anything -> no valid result; medium priority
 
-        elif sibling is not None and item == sibling.value:
+        elif sibling and item == sibling.value:
             new_children.append(sibling)
 
         elif item == in_tree.value:
@@ -160,7 +160,7 @@ def get_path(subtree, in_tree, graph):
 
 def walk_path(substituted_tree, path, start_nodes):
     for node in path:
-        parent = substituted_tree  # TODO: this does not end in the parent, but the substituted_tree; high priority
+        parent = substituted_tree
         if substituted_tree:
             substituted_tree = get_next_subtree(substituted_tree, node)
 
@@ -193,7 +193,7 @@ def insert_merged_tree(in_tree, substituted_tree, old_tree, path, canonical_gram
     parent_type = path[len(path) - 1]
     # step 2.1: check if expansion fits in_tree + old children
     possible_rules = canonical_grammar.get(parent_type)
-    # TODO: this is recursive insertion currently, do I have to consider parallel insertion?
+    # TODO: this is recursive insertion currently, do I have to consider parallel insertion? low priority
 
     new_tree = None
     for rule in possible_rules:
@@ -203,7 +203,7 @@ def insert_merged_tree(in_tree, substituted_tree, old_tree, path, canonical_gram
             new_children = match_rule(rule, in_tree, substituted_tree)
             # step 2.2: insert if True for each expansion that fits
             new_subtree = DerivationTree(parent_type, new_children)  # TODO: id, low priority
-            new_tree = old_tree.replace_path(old_tree.find_node(substituted_tree), new_subtree)  # TODO: identify path more efficiently?
+            new_tree = old_tree.replace_path(old_tree.find_node(substituted_tree), new_subtree)  # TODO: identify path more efficiently? low priority
 
     return new_tree
 

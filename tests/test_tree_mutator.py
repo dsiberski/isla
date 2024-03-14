@@ -142,7 +142,6 @@ class TestTreeMutator(unittest.TestCase):
 
         result = insert_tree(LANG_GRAMMAR, tree, in_tree)
 
-        # TODO: invalid result is returned!
         str_results = [str(t) for t in result]
         print("\n\n")
         print("\n\n".join(str_results))
@@ -152,6 +151,28 @@ class TestTreeMutator(unittest.TestCase):
         self.assertTrue(all(t.find_node(12250) for t in result))
         self.assertTrue(all(t.find_node(240) for t in result))
         self.assertTrue(all(t.find_node(245) for t in result))
+
+    def test_insert_lang_4(self):
+        result = list()
+        inp = "x := 1 ; y := z ; a := 5"
+        tree = DerivationTree.from_parse_tree(parse(inp, LANG_GRAMMAR))
+
+        to_insert = DerivationTree.from_parse_tree(parse("y := 0", LANG_GRAMMAR, "<assgn>"))
+        results = insert_tree(LANG_GRAMMAR, to_insert, tree)
+        while True:
+            try:
+                result.append(next(results))
+            except StopIteration:
+                break
+
+        str_results = [str(t) for t in result]
+        print("\n\n")
+        print("\n\n".join(str_results))
+
+        self.assertIn("y := 0 ; x := 1 ; y := z ; a := 5", map(str, result))
+        self.assertIn("x := 1 ; y := 0 ; y := z ; a := 5", map(str, result))
+        self.assertIn("x := 1 ; y := z ; y := 0 ; a := 5", map(str, result))
+        self.assertIn("x := 1 ; y := z ; a := 5 ; y := 0", map(str, result))
 
     def test_insert_json_1(self):
         inp = ' { "T" : { "I" : true , "" : [ false , "salami" ] , "" : true , "" : null , "" : false } } '
@@ -189,7 +210,7 @@ class TestTreeMutator(unittest.TestCase):
     def test_insert_json_1_subset_1(self):
         inp = ' { "T" : false } '
         tree = DerivationTree.from_parse_tree(parse(inp, JSON_GRAMMAR))
-        to_insert = DerivationTree.from_parse_tree(parse(' "key" : { "key" : null } ', JSON_GRAMMAR, "<member>"))
+        to_insert = DerivationTree.from_parse_tree(parse(' "key" : null } ', JSON_GRAMMAR, "<member>"))
 
         results = insert_tree(JSON_GRAMMAR, to_insert, tree, max_num_solutions=10)
         str_results = [result.to_string().strip() for result in results]
@@ -198,14 +219,14 @@ class TestTreeMutator(unittest.TestCase):
         print("\n\n".join(str_results))
 
         self.assertIn(
-            '{ "key" : { "key" : null } , '
+            '{ "key" : null } , '
             '"T" : false } }',
             str_results)
 
-    def test_insert_json_1_subset_2(self):
-        inp = ' { "T" : { "" : [ false , "salami" ] } } '
+    def test_insert_json_3(self):
+        inp = ' { "T" : [ { "I" : false } , false ] } '
         tree = DerivationTree.from_parse_tree(parse(inp, JSON_GRAMMAR))
-        to_insert = DerivationTree.from_parse_tree(parse(' "key" : { "key" : null } ', JSON_GRAMMAR, "<member>"))
+        to_insert = DerivationTree.from_parse_tree(parse(' "key" : null ', JSON_GRAMMAR, "<member>"))
 
         results = insert_tree(JSON_GRAMMAR, to_insert, tree, max_num_solutions=10)
         str_results = [result.to_string().strip() for result in results]
@@ -214,8 +235,7 @@ class TestTreeMutator(unittest.TestCase):
         print("\n\n".join(str_results))
 
         self.assertIn(
-            '{ "key" : { "key" : null } , '
-            '"T" : { "" : [ false , "salami" ]  } }',
+            '{ "T" : [ { "I" : false } , false , { "key" : null } ] }',
             str_results)
 
 

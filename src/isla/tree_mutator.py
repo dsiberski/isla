@@ -41,7 +41,8 @@ def insert_tree(
     start_nodes.append(old_tree)
     sorted_parents = possible_parent_types(canonical_grammar) # TODO: try to only initialize sorted_parents when needed later on, low priority
     original_in_tree = in_tree
-    in_trees = [in_tree]
+    in_trees = deque()
+    in_trees.append(in_tree)
     solution_count = 0
     results = queue.Queue(3)  # deque has no empty attribute
 
@@ -57,45 +58,53 @@ def insert_tree(
             try:
                 # step 0: get (new) start_node from list and calc new path, repeat steps 1-2 while nodes in start_nodes list
                 subtree = start_nodes.popleft() # traverse breadth first for new starting points
-
             except IndexError:
                 # all possible direct insertions of the current in_tree have been done
                 # step 3: extend in_tree by adding parent, <new_parent> != <old_parent, set start_node = <start>
                 # step 3.1: repeat step 1-2
-
+                # TODO: look at all this code and decide if it is done in the right order/could be optimized for the program flow
                 subtree = old_tree
                 in_parents = sorted_parents.get(in_tree.value)
-                in_trees = extend_tree(canonical_grammar, in_tree, in_parents)
+                if in_parents:
+                    in_trees.extend(extend_tree(canonical_grammar, in_tree, in_parents))
 
-                # step 4: terminate if in_tree.value = <start> / old_tree.value # TODO: this will change with predicates!
-                in_tree = in_trees[0]
-                if in_tree.value == old_tree.value:
-
+                try:
+                    in_tree = in_trees.popleft()
+                except IndexError:
+                    # step 4: terminate if no extensions exist for the in_tree
                     break
+                if in_tree.value == old_tree.value:
+                    try:
+                        # try to get an alternative extension for the in_tree
+                        in_tree = in_trees.popleft()
+                    except IndexError:
+                        # step 4: terminate if in_tree.value = <start> / old_tree.value and no alternative extension for
+                        #   the in_tree exists TODO: this will change with predicates!
+                        break
                 pass
 
             # step 1: follow path, add siblings to start-nodes list
-            for in_tree in in_trees:
-                # step 1.1: calculate path
-                path = get_path(subtree, in_tree, graph)
 
-                if path:
-                    # step 1.2: follow path through subtree (subtree can be complete old_tree)
-                    substituted_tree = walk_path(subtree, path, start_nodes)
+            # step 1.1: calculate path
+            path = get_path(subtree, in_tree, graph)
 
-                    if substituted_tree:
-                        print(substituted_tree.value)
-                        # step 2: found end of path -> try to insert tree
-                        new_tree = insert_merged_tree(in_tree, substituted_tree, old_tree, path, canonical_grammar)
-                            # step 2.1.1: check if expansion fits in_tree + old children
-                            # step 2.1.2: collect children's and insert's type and match with rules for parent type
-                            # step 2.2: insert for each expansion that fits
+            if path:
+                # step 1.2: follow path through subtree (subtree can be complete old_tree)
+                substituted_tree = walk_path(subtree, path, start_nodes)
 
-                        # step 2.3: check if the tree is valid
-                        if new_tree:
-                            if valid_result(new_tree, old_tree, original_in_tree):
-                                results.put(new_tree)
-                                solution_count = solution_count + 1
+                if substituted_tree:
+                    print(substituted_tree.value)
+                    # step 2: found end of path -> try to insert tree
+                    new_tree = insert_merged_tree(in_tree, substituted_tree, old_tree, path, canonical_grammar)
+                        # step 2.1.1: check if expansion fits in_tree + old children
+                        # step 2.1.2: collect children's and insert's type and match with rules for parent type
+                        # step 2.2: insert for each expansion that fits
+
+                    # step 2.3: check if the tree is valid
+                    if new_tree:
+                        if valid_result(new_tree, old_tree, original_in_tree):
+                            results.put(new_tree)
+                            solution_count = solution_count + 1
 
         else:
             # return calculated results
@@ -148,7 +157,7 @@ def get_path(subtree, in_tree, graph):
         if path[0] not in children:
             path.pop(0)
 
-        if len(path) > 1:  # TODO: add comment
+        if len(path) > 1:  # TODO: add comment, it definitely does something relevant (test LANG1)
             path.pop()
 
     except IndexError:

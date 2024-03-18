@@ -210,7 +210,7 @@ class TestTreeMutator(unittest.TestCase):
     def test_insert_json_1_subset_1(self):
         inp = ' { "T" : false } '
         tree = DerivationTree.from_parse_tree(parse(inp, JSON_GRAMMAR))
-        to_insert = DerivationTree.from_parse_tree(parse(' "key" : null } ', JSON_GRAMMAR, "<member>"))
+        to_insert = DerivationTree.from_parse_tree(parse(' "key" : null ', JSON_GRAMMAR, "<member>"))
 
         results = insert_tree(JSON_GRAMMAR, to_insert, tree, max_num_solutions=10)
         str_results = [result.to_string().strip() for result in results]

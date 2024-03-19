@@ -308,7 +308,7 @@ def possible_parent_types(grammar: CanonicalGrammar) -> Dict:
     return sorted_parents
 
 class InsertionInfo:
-    def __init__(self, grammar, in_tree, old_tree, graph=None, max_num_solutions=None):
+    def __init__(self, grammar, in_tree, old_tree, graph=None, max_num_solutions=None, solutions=0):
         self.grammar = grammar
         self.in_tree = in_tree
         self.old_tree = old_tree
@@ -319,7 +319,7 @@ class InsertionInfo:
             self.graph = GrammarGraph.from_grammar(grammar) # create a grammar graph if it is not available
 
         self.max_num_solutions = max_num_solutions
-        self.solutions = 0
+        self.solutions = solutions
 
     def new_solution(self):
         self.solutions = self.solutions + 1

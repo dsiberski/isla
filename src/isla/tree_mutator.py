@@ -38,17 +38,15 @@ def insert_tree(
 ) -> Generator[DerivationTree, Any, None]:
     insertion_info = InsertionInfo(grammar, in_tree, old_tree, graph, max_num_solutions)
 
-    return insert_tree_full_coverage(insertion_info)
+    return insert_tree_full_coverage(insertion_info, old_tree)
 
-def insert_tree_full_coverage(insertion_info):
+def insert_tree_full_coverage(insertion_info, tree):
     start_nodes = deque() # enables fast FIFO
-    start_nodes.append(insertion_info.old_tree)
+    start_nodes.append(tree)
     in_trees = deque()
-    #in_trees.append(insertion_info.in_tree)
     in_tree = insertion_info.in_tree
 
     replacement_nodes = []
-    solution_count = 0
     results = queue.Queue(3)  # using Queue instead of deque since it has the empty attribute
 
     while True:
@@ -63,7 +61,7 @@ def insert_tree_full_coverage(insertion_info):
                 # step 3: set start_node = <start>, extend in_tree by adding parent, TODO: <new_parent> != <old_parent,
                 #   repeat steps 1-2
                 # TODO: look at all this code and decide if it is done in the right order/could be optimized for the program flow
-                subtree = insertion_info.old_tree
+                subtree = tree
                 in_parents = insertion_info.sorted_parents.get(in_tree.value)
                 # step 3.1: extend in_tree
                 if in_parents:

@@ -174,6 +174,79 @@ class TestTreeMutator(unittest.TestCase):
         self.assertIn("x := 1 ; y := z ; y := 0 ; a := 5", map(str, result))
         self.assertIn("x := 1 ; y := z ; a := 5 ; y := 0", map(str, result))
 
+    def test_insert_lang_before(self):
+        #canonical_grammar = canonical(LANG_GRAMMAR)
+        result = list()
+        inp = "x := 1 ; y := z"
+        tree = DerivationTree.from_parse_tree(parse(inp, LANG_GRAMMAR))
+
+        pred_node = tree.children[0].children[0]
+
+        to_insert = DerivationTree.from_parse_tree(parse("y := 0", LANG_GRAMMAR, "<assgn>"))
+        results = insert_tree(LANG_GRAMMAR, to_insert, tree, predicate="before", predicate_node=pred_node)
+        while True:
+            try:
+                result.append(next(results))
+            except StopIteration:
+                break
+
+        str_results = [str(t) for t in result]
+        print("\n\n")
+        print("\n\n".join(str_results))
+
+        self.assertNotIn("x := 1 ; y := 0 ; y := z", map(str, result))
+        self.assertIn("y := 0 ; x := 1 ; y := z", map(str, result))
+        self.assertNotIn("x := 1 ; y := z ; y := 0", map(str, result))
+
+    def test_insert_lang_before2(self):
+        #canonical_grammar = canonical(LANG_GRAMMAR)
+        result = list()
+        inp = "x := 1 ; y := z"
+        tree = DerivationTree.from_parse_tree(parse(inp, LANG_GRAMMAR))
+
+        pred_node = tree.children[0].children[2].children[0]
+
+        to_insert = DerivationTree.from_parse_tree(parse("y := 0", LANG_GRAMMAR, "<assgn>"))
+        results = insert_tree(LANG_GRAMMAR, to_insert, tree, predicate="before", predicate_node=pred_node)
+        while True:
+            try:
+                result.append(next(results))
+            except StopIteration:
+                break
+
+        str_results = [str(t) for t in result]
+        print("\n\n")
+        print("\n\n".join(str_results))
+
+        self.assertIn("x := 1 ; y := 0 ; y := z", map(str, result))
+        self.assertIn("y := 0 ; x := 1 ; y := z", map(str, result))
+        self.assertNotIn("x := 1 ; y := z ; y := 0", map(str, result))
+
+    def test_insert_lang_after(self):
+        #canonical_grammar = canonical(LANG_GRAMMAR)
+        result = list()
+        inp = "x := 1 ; y := z"
+        tree = DerivationTree.from_parse_tree(parse(inp, LANG_GRAMMAR))
+
+        pred_node = tree.children[0].children[0]
+
+        to_insert = DerivationTree.from_parse_tree(parse("y := 0", LANG_GRAMMAR, "<assgn>"))
+        results = insert_tree(LANG_GRAMMAR, to_insert, tree, predicate="after", predicate_node=pred_node)
+        while True:
+            try:
+                result.append(next(results))
+            except StopIteration:
+                break
+
+        str_results = [str(t) for t in result]
+
+        print("\n\n")
+        print("\n\n".join(str_results))
+
+        self.assertIn("x := 1 ; y := 0 ; y := z", map(str, result))
+        self.assertNotIn("y := 0 ; x := 1 ; y := z", map(str, result))
+        self.assertIn("x := 1 ; y := z ; y := 0", map(str, result))
+
     def test_insert_json_1(self):
         inp = ' { "T" : { "I" : true , "" : [ false , "salami" ] , "" : true , "" : null , "" : false } } '
         tree = DerivationTree.from_parse_tree(parse(inp, JSON_GRAMMAR))

@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with ISLa.  If not, see <http://www.gnu.org/licenses/>.
 import queue
-from itertools import chain
 from typing import Optional, List, Tuple, cast, Union, Set, Dict, Any, Generator
 
 from grammar_graph.gg import GrammarGraph
@@ -36,16 +35,15 @@ def insert_tree(
         predicate: Optional[str] = None, # TODO: mostly call methods on subtree ?
         predicate_node = None,
         max_num_solutions: Optional[int] = None,
-        replace = False  # TODO: decide if I want this as a parameter
 ) -> Generator[DerivationTree, Any, None]:
     insertion_info = InsertionInfo(grammar, in_tree, old_tree, graph, max_num_solutions, predicate_node=predicate_node)
 
     result = insert_tree_full_coverage(insertion_info, old_tree, predicate)
 
-    if replace:
-        result = None # TODO: left to implement
 
-    return  result
+    result2 = None # TODO: left to implement
+
+    return result
 
 
 def insert_tree_full_coverage(insertion_info, tree, predicate):
@@ -70,7 +68,7 @@ def insert_tree_full_coverage(insertion_info, tree, predicate):
                 #   repeat steps 1-2
                 # TODO: look at all this code and decide if it is done in the right order/could be optimized for the program flow
                 subtree = tree
-                in_parents = insertion_info.sorted_parents.get(in_tree.value)
+                in_parents = insertion_info.get_parents(in_tree.value)
                 # step 3.1: extend in_tree
                 if in_parents:
                     in_trees.extend(extend_tree(insertion_info.canonical_grammar, in_tree, in_parents))
@@ -99,7 +97,7 @@ def insert_tree_full_coverage(insertion_info, tree, predicate):
 
             if path:
                 # step 1.2: follow path through subtree (subtree can be complete old_tree)
-                substituted_tree, new_start_nodes, replacements = walk_path(subtree, insertion_info.in_tree, path)
+                substituted_tree, new_start_nodes, replacements = get_substituted_tree_with_alternative_starts(subtree, insertion_info.in_tree, path)
                 start_nodes.extend(new_start_nodes)
                 replacement_nodes.extend(replacements) # TODO: do I even want this here instead of only adding when there is no path
 
@@ -134,20 +132,22 @@ def insert_tree_full_coverage(insertion_info, tree, predicate):
 
 def match_rule(grammar, rule, in_tree, sibling=DerivationTree("", ())):
     # TODO: cannot add multiple siblings of same type, rename this function since it does not return complete tree?
+    #   there is also weird stuff here, should sibling not be a list of all siblings? why do I unpack children????
     new_children = []
     new_sibling = None
 
     if sibling and sibling.children:
         if in_tree.value == sibling.value:
             siblings = list(sibling.children)
-            new_sibling = siblings[0] # TODO: I do not remember why I implemented this, add comment for explanation!
+            new_sibling = siblings.pop(0) # TODO: I do not remember why I implemented this, add comment for explanation!
             sibling = None
 
     for item in rule:
         # TODO: fix that a sibling is only inserted once, try to fix syntax stuff?
         if new_sibling is not None and item == new_sibling.value:
             new_children.append(new_sibling)
-            new_sibling = None # TODO: workaround, fix that it works with multiple children instead
+            if siblings:
+                new_sibling = siblings.pop(0) # TODO: workaround, fix that it works with multiple children instead
             # TODO: if it does not accommodate all siblings, do not return anything -> no valid result; medium priority
 
         elif sibling and item == sibling.value:
@@ -157,9 +157,8 @@ def match_rule(grammar, rule, in_tree, sibling=DerivationTree("", ())):
             new_children.append(in_tree)
 
         elif not is_nonterminal(item):
+            # since this is a terminal node, it is closed
             new_children.append(DerivationTree(item, ()))  # TODO: fix id? low priority
-            # TODO: should this be None or () ? None might indicate open node, while () indicates closed node?
-            #  seems to need to be (), see JSON 3 test, investigate why! middle priority
         else:
             child = grammar.get(item)[0]
             if child and '<' not in child:
@@ -168,7 +167,7 @@ def match_rule(grammar, rule, in_tree, sibling=DerivationTree("", ())):
                 new_child = DerivationTree(child[0], ())
                 new_children.append(DerivationTree(item, [new_child]))
             else:
-                # if nothing fits, add item as open node without children
+                # if nothing fits, add item as open node without children, this is an open node
                 new_children.append(DerivationTree(item, None))
 
     return new_children
@@ -180,24 +179,26 @@ def get_path(subtree, in_tree, graph):
     try:
         path = [node.symbol for node in graph.shortest_non_trivial_path(original_node, inserted_node)]
 
-        children = []
-        for child in subtree.children:
-            children.append(child.value)
+        if path:
+            children = []
+            for child in subtree.children:
+                children.append(child.value)
 
-        if path[0] not in children:  # TODO: delete this later, this is a workaround to inserting first that does only work in some cases
-            path.pop(0)
+            if path[0] not in children:  # TODO: delete this later, this is a workaround to inserting first that does only work in some cases, should be fixed with replacement insertion
+                path.pop(0)
 
-        if len(path) > 1:  # TODO: add comment, it definitely does something relevant (test LANG1)
-            path.pop()
+            # prioritize insertion into parent node, but also enable working directly on the node, TODO: kill this later!
+            if len(path) > 1:
+                path.pop()
 
-    except IndexError:
+    except (TypeError, IndexError): # TODO: maybe catch at least some cases that trigger this before calling shortest_non_trivial_path
         path = []
         pass
 
     return path
 
 
-def walk_path(substituted_tree, in_tree, path): # TODO: rename
+def get_substituted_tree_with_alternative_starts(substituted_tree, in_tree, path): # TODO: rename
     new_start_nodes = []
     replacement_nodes = []
 
@@ -278,7 +279,7 @@ def insert_merged_tree(tree, in_tree, substituted_tree, old_tree, path, canonica
 
             new_tree = old_tree.replace_path(old_tree.find_node(substituted_tree), new_subtree)  # TODO: identify path more efficiently? low priority
 
-            # step 2.2.1: check if children comply with predicate # TODO: check if I can move this somewhere else; medium priority
+            # step 2.2.1: check if children comply with predicate # TODO: put into separate function?; medium priority
             if predicate:
                 new_tree_string = str(new_tree)
                 predicate_string = str(predicate_node)
@@ -356,13 +357,13 @@ class InsertionInfo:
         self.in_tree = in_tree
         self.old_tree = old_tree
         self.canonical_grammar = canonical(grammar)
-        self.sorted_parents = possible_parent_types(
-            self.canonical_grammar)  # TODO: try to only initialize sorted_parents when needed later on, low priority
+        self.sorted_parents = None
         if graph is None:
             self.graph = GrammarGraph.from_grammar(grammar) # create a grammar graph if it is not available
 
         self.max_num_solutions = max_num_solutions
         self.solutions = solutions
+        self.predicate_node = None
         if predicate_node:
             self.predicate_node = predicate_node
             self.pred_path = old_tree.find_node(predicate_node)
@@ -372,6 +373,11 @@ class InsertionInfo:
     def new_solution(self):
         self.solutions = self.solutions + 1
 
+    def get_parents(self, value):
+        if not self.sorted_parents:
+            self.sorted_parents = possible_parent_types(self.canonical_grammar)
+        return self.sorted_parents.get(value)
+
 
 def verify_path_with_predicate(predicate, pred_path, in_path):
     if not in_path: # TODO: find out why this can happen!! low priority
@@ -379,7 +385,7 @@ def verify_path_with_predicate(predicate, pred_path, in_path):
 
     if predicate == 'before':
         for i in pred_path:
-            if len(in_path) - i <= 1 and len(pred_path) != len(in_path):
+            if len(in_path) - i <= 1:
                 if pred_path[i-1] >= in_path[i-1]:
                     return True
                 return False
